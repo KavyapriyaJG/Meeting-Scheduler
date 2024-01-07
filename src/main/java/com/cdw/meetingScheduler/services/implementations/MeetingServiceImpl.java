@@ -127,11 +127,10 @@ public class MeetingServiceImpl implements MeetingService {
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(MeetingSchedulerConstants.EMPLOYEE_BUSY);
 
 
-        // TODO ------ check !!
         if (teamAssociatedWithMeeting.isCollaborationTeam()) {
             // Collaboration team - just add the employee
             teamAssociatedWithMeeting.addEmployee(employeeToBeAdded);
-            teamRepository.save(teamAssociatedWithMeeting); // but duplicates !! (not any more)
+            teamRepository.save(teamAssociatedWithMeeting);
 
             // Update meeting strength directly,
             meeting.setStrength(meeting.updateStrength());
@@ -182,14 +181,13 @@ public class MeetingServiceImpl implements MeetingService {
         // get all employees in meeting's team
         List<Integer> employeesInTeam = teamAssociatedWithMeeting.getEmployees().stream().map(Employee::getEmployeeId).toList();
 
-        if (! employeesInTeam.contains(employeeId))
+        if (!employeesInTeam.contains(employeeId))
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(MeetingSchedulerConstants.EMPLOYEE_ALREADY_NOT_IN_MEETING);
 
-        // TODO ------ check !!
         if (teamAssociatedWithMeeting.isCollaborationTeam()) {
             // Collaboration team - just remove the employee
             teamAssociatedWithMeeting.removeEmployee(employeeToBeRemoved);
-            teamRepository.save(teamAssociatedWithMeeting); // but duplicates !! (not any more)
+            teamRepository.save(teamAssociatedWithMeeting);
 
             // Update meeting strength directly,
             meeting.setStrength(meeting.updateStrength());
@@ -219,7 +217,6 @@ public class MeetingServiceImpl implements MeetingService {
             // Update employeeToBeRemoved
             employeeToBeRemoved.removeTeam(newEditedTeam);
             employeeToBeRemoved.removeMeeting(meeting);
-//            employeeRepository.save(employeeToBeRemoved);
         }
         return ResponseEntity.ok(meeting);
 
@@ -250,7 +247,7 @@ public class MeetingServiceImpl implements MeetingService {
             }
 
             Room room = optionalRoom.get();
-            if (team.getStrength() <= room.getCapacity()) {  // TODO: is it necessary to have room for active strength capacity ?
+            if (team.getStrength() <= room.getCapacity()) {
                 if (isRoomAvailableForTheDuration(room, createMeetingRequest.getEndDatetime(), createMeetingRequest.getStartDatetime())) {
 
                     // ------------- Creating a meeting -------------
@@ -274,11 +271,8 @@ public class MeetingServiceImpl implements MeetingService {
                     nonAvailableMemberIds.forEach(newMeeting::addDeclinedInvitee); // will auto update the active strength
                     meetingRepository.save(newMeeting);
 
-                    //update associations   -------- auto updated (room, meetings)
-
-                    if (nonAvailableMembers.size() > 0) {
+                    if (nonAvailableMembers.size() > 0)
                         return ResponseEntity.status(HttpStatus.CREATED).body(MeetingSchedulerConstants.UNADDED_UNAVAILABLE_COLLABORATORS + nonAvailableMemberIds.toString());
-                    }
 
                     return ResponseEntity.status(HttpStatus.CREATED).body(newMeeting);
 
@@ -291,7 +285,7 @@ public class MeetingServiceImpl implements MeetingService {
             }
         } else {
             // Display a list of rooms to choose from based on available members strength
-            int availableMembersStrength = team.getStrength(); // TODO: is it necessary to have room for active strength capacity ?
+            int availableMembersStrength = team.getStrength();
             return findAvailableRoomsBasedOnStrength(availableMembersStrength);
         }
     }
@@ -315,9 +309,7 @@ public class MeetingServiceImpl implements MeetingService {
         newCollabTeam.setCollaborationTeam(true);
         collaborators.stream().forEach(newCollabTeam::addEmployee);
         teamRepository.save(newCollabTeam);
-        // useful to delete in future
         int collaborationTeamId = newCollabTeam.getTeamId();
-        // No need to add this collaborator meeting to every employee entity
 
         List<Employee> nonAvailableMembers = nonAvailableMembersInTeam(newCollabTeam, createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime());
         List<Integer> nonAvailableMemberIds = nonAvailableMembers.stream()
@@ -333,7 +325,7 @@ public class MeetingServiceImpl implements MeetingService {
             }
 
             Room room = optionalRoom.get();
-            if (newCollabTeam.getStrength() <= room.getCapacity()) {  // TODO: is it necessary to have room for active strength capacity ? (collaboration team so no issues)
+            if (newCollabTeam.getStrength() <= room.getCapacity()) {
                 if (isRoomAvailableForTheDuration(room, createMeetingRequest.getEndDatetime(), createMeetingRequest.getStartDatetime())) {
 
                     // ------------- Creating a meeting -------------
@@ -357,7 +349,7 @@ public class MeetingServiceImpl implements MeetingService {
                     newMeeting.addTeam(newCollabTeam);
                     nonAvailableMemberIds.forEach(newMeeting::addDeclinedInvitee); // will auto update the active strength
                     meetingRepository.save(newMeeting);
-                    //update associations   -------- auto updated
+
                     if (nonAvailableMembers.size() > 0)
                         return ResponseEntity.status(HttpStatus.CREATED).body(MeetingSchedulerConstants.UNADDED_UNAVAILABLE_COLLABORATORS + nonAvailableMemberIds.toString());
 
@@ -376,7 +368,7 @@ public class MeetingServiceImpl implements MeetingService {
             teamRepository.deleteById(collaborationTeamId); // delete collaboration team for which no meeting was created
 
             // Display a list of rooms to choose from based on full team capacity strength
-            int availableMembersStrength = newCollabTeam.getStrength();  // TODO: is it necessary to have room for active strength capacity ? (collaboration team, so no issues )
+            int availableMembersStrength = newCollabTeam.getStrength();
             return findAvailableRoomsBasedOnStrength(availableMembersStrength);
         }
 
@@ -404,12 +396,10 @@ public class MeetingServiceImpl implements MeetingService {
                 .map(String::valueOf)
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(MeetingSchedulerConstants.CHOOSE_ROOM + availableRoomsIds);
-
     }
 
     public boolean isRoomAvailableForTheDuration(Room room, LocalDateTime startDatetime, LocalDateTime endDatetime) {
-        // !--- concerned with testing service
-        return ! meetingRepository.existsByRoomsAndStartDatetimeLessThanAndEndDatetimeGreaterThan(room, endDatetime, startDatetime);
+        return !meetingRepository.existsByRoomsAndStartDatetimeLessThanAndEndDatetimeGreaterThan(room, endDatetime, startDatetime);
     }
 
     public boolean isMemberAvailableForTheDuration(Employee employee, LocalDateTime startDatetime, LocalDateTime endDatetime) {

@@ -5,45 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f705c09f-4004-431d-a23c-ae9b2ec9e9b3" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/HELP.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mvnw" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mvnw.cmd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/MeetingSchedulerApplication.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/constants/MeetingSchedulerConstants.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/constants/RouteConstants.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/controllers/EmployeeController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/controllers/MeetingController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/controllers/RoomController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/controllers/TeamController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/dto/CreateMeetingRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/dto/DurationDTO.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/dto/UpdateMeetingRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/entities/Employee.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/entities/Meeting.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/entities/Room.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/entities/Team.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/exceptions/GlobalExceptionHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/exceptions/MeetingSchedulerException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/repositories/EmployeeRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/repositories/MeetingRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/repositories/RoomRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/repositories/TeamRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/EmployeeService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/MeetingService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/RoomService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/TeamService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/EmployeeServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/MeetingServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/RoomServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/TeamServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/utils/CustomDateTimeDeserializer.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/utils/DateTimeUtils.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/application.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/cdw/meetingScheduler/MeetingSchedulerApplicationTests.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/cdw/meetingScheduler/controllers/MeetingControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/cdw/meetingScheduler/services/MeetingServiceImplTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/cdw/meetingScheduler/utils/DateTimeUtilsTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/MeetingServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/cdw/meetingScheduler/services/implementations/MeetingServiceImpl.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -203,6 +166,17 @@
       <updated>1702959153807</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
