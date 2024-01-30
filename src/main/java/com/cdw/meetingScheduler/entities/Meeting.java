@@ -2,13 +2,16 @@ package com.cdw.meetingScheduler.entities;
 
 import jakarta.persistence.*;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "meeting")
 public class Meeting {
@@ -45,7 +48,9 @@ public class Meeting {
     @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
     @JoinTable(name = "teams_meetings", joinColumns = @JoinColumn(name = "meeting_id"), inverseJoinColumns = @JoinColumn(name = "team_id"))
     private List<Team> teams;
-    private List<Integer> declinedInvitees;
+
+    @Column(name = "declined_invitees")
+    private String declinedInvitees;
 
 //    BOOKER EMPLOYEE
     @ManyToOne(fetch = FetchType.EAGER,cascade = {CascadeType.DETACH,CascadeType.MERGE, CascadeType.PERSIST,CascadeType.REFRESH})
@@ -69,37 +74,27 @@ public class Meeting {
 
     public void removeTeam(Team team) {
         if (teams != null) {
-            //teams.remove(team);  // but removeIf used for 1.when we render, we get ID removing an obj by ID 2.Additionally, an if check
+//            teams.remove(team);  // but removeIf used for 1.when we render, we get ID removing an obj by ID 2.Additionally, an if check
             teams.removeIf(existingTeam -> existingTeam.getTeamId() == team.getTeamId());
             setStrength(updateStrength());
         }
     }
 
-    public boolean addDeclinedInvitee(Integer employeeId) {
-        if (declinedInvitees == null) {
-            declinedInvitees = new ArrayList<>();
-        }
-        if(!declinedInvitees.contains(employeeId)){
-            declinedInvitees.add(employeeId);
-            setStrength(getStrength()-1);
-            return true;
-        }
-        return false;
-    }
-
-    public boolean removeDeclinedInvitee(Integer employeeId) {
-        if (declinedInvitees != null) {
-            if(declinedInvitees.contains(employeeId)) {
-                declinedInvitees.remove(employeeId);
-                setStrength(getStrength()-1);
-                return true;
-            }
-        }
-        return false;
-    }
-
     public int updateStrength() {
         return teams.stream().mapToInt(Team::getStrength).sum();
+    }
+
+    public Meeting(String name, String description, LocalDateTime startDatetime, LocalDateTime endDatetime, boolean activeStatus, int strength, List<Room> rooms, List<Team> teams, String declinedInvitees, Employee employee) {
+        this.name = name;
+        this.description = description;
+        this.startDatetime = startDatetime;
+        this.endDatetime = endDatetime;
+        this.activeStatus = activeStatus;
+        this.strength = strength;
+        this.rooms = rooms;
+        this.teams = teams;
+        this.declinedInvitees = declinedInvitees;
+        this.employee = employee;
     }
 }
 

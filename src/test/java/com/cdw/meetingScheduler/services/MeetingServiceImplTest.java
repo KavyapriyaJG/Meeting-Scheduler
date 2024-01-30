@@ -2,17 +2,20 @@ package com.cdw.meetingScheduler.services;
 
 import com.cdw.meetingScheduler.constants.MeetingSchedulerConstants;
 import com.cdw.meetingScheduler.dto.CreateMeetingRequest;
+import com.cdw.meetingScheduler.dto.MeetingResponseDTO;
 import com.cdw.meetingScheduler.dto.UpdateMeetingRequest;
 import com.cdw.meetingScheduler.entities.Employee;
 import com.cdw.meetingScheduler.entities.Meeting;
 import com.cdw.meetingScheduler.entities.Room;
 import com.cdw.meetingScheduler.entities.Team;
+import com.cdw.meetingScheduler.exceptions.MeetingSchedulerException;
+import com.cdw.meetingScheduler.exceptions.ValidationException;
 import com.cdw.meetingScheduler.repositories.EmployeeRepository;
 import com.cdw.meetingScheduler.repositories.MeetingRepository;
 import com.cdw.meetingScheduler.repositories.RoomRepository;
 import com.cdw.meetingScheduler.repositories.TeamRepository;
 import com.cdw.meetingScheduler.services.implementations.MeetingServiceImpl;
-import com.cdw.meetingScheduler.utils.DateTimeUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,195 +45,253 @@ public class MeetingServiceImplTest {
     @Mock
     private EmployeeRepository employeeRepository;
 
-    @Test
-    void findAll() {
-        Meeting meeting = new Meeting();
+    private Meeting meeting, meeting2;
+    private List<Meeting> meetings;
+    private MeetingResponseDTO expectedMeetingResponseDTO, expectedMeeting2ResponseDTO;
+
+    private Employee employee1, employee2;
+
+    private Room room;
+
+    private Team team;
+
+    @BeforeEach
+    void init() {
+        employee1 = new Employee();
+        employee1.setEmployeeId(1);
+        employee1.setName("Employee1 name");
+        employee1.setEmail("employee1@mail.com");
+        employee1.setTeams(new ArrayList<>());
+        employee2 = new Employee();
+        employee2.setEmployeeId(2);
+        employee2.setName("Employee2 name");
+        employee2.setEmail("employee2@mail.com");
+        employee2.setTeams(new ArrayList<>());
+
+        room = new Room();
+        room.setRoomId(1);
+        room.setName("Room name");
+        room.setCapacity(5);
+        room.setMeetings(new ArrayList<>());
+
+        team = new Team();
+        team.setTeamId(1);
+        team.setName("Team name");
+        team.setCollaborationTeam(false);
+        team.addEmployee(employee1);
+
+        List<Team> teams = new ArrayList<>();
+        teams.add(team);
+
+        meeting = new Meeting();
         meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
+        meeting.setName("Project Kickoff");
+        meeting.setDescription("Discuss project goals and timeline");
         meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
         meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
         meeting.setActiveStatus(true);
         meeting.setStrength(1);
+        meeting.setEmployee(employee1);
+        meeting.setRooms(new ArrayList<>(Arrays.asList(room)));
+        meeting.setTeams(new ArrayList<>(Arrays.asList(team)));
+        meeting.setDeclinedInvitees(List.of("employee1@mail.com").toString());
 
-        List<Meeting> meetings = new ArrayList<>();
+        meeting2 = new Meeting();
+        meeting2.setMeetingId(2);
+        meeting2.setName("Project Windup");
+        meeting2.setDescription("Retrospective discussion");
+        meeting2.setStartDatetime(LocalDateTime.parse("2024-06-03 10:00:00".replace(" ", "T")));
+        meeting2.setEndDatetime(LocalDateTime.parse("2024-06-03 12:00:00".replace(" ", "T")));
+        meeting2.setActiveStatus(true);
+        meeting2.setStrength(1);
+        meeting2.setEmployee(employee1);
+        meeting2.setRooms(new ArrayList<>(Arrays.asList(room)));
+        meeting2.setDeclinedInvitees(List.of("employee1@mail.com").toString());
+
+        meetings = new ArrayList<>();
         meetings.add(meeting);
 
+        expectedMeetingResponseDTO = new MeetingResponseDTO(meeting.getMeetingId(), meeting.getName(), meeting.getDescription(), meeting.getStartDatetime(), meeting.getEndDatetime(), meeting.isActiveStatus(), meeting.getStrength(), meeting.getEmployee().getEmployeeId());
+        expectedMeetingResponseDTO.setRooms(meeting.getRooms().stream().map(Room::getRoomId).toList());
+        expectedMeetingResponseDTO.setTeams(meeting.getTeams().stream().map(Team::getTeamId).toList());
+        expectedMeetingResponseDTO.setDeclinedInvitees(meeting.getDeclinedInvitees());
+    }
+
+    @Test
+    void findAllTest() {
         when(meetingRepository.findAll()).thenReturn(meetings);
-        List<Meeting> allMeetings = meetingService.findAll();
-        assertEquals(meetings, allMeetings, "Fetched meetings successfully");
+        List<MeetingResponseDTO> allMeetings = meetingService.findAll();
+        assertIterableEquals(List.of(expectedMeetingResponseDTO), allMeetings, "Fetched meetings successfully");
+
+        when(meetingRepository.findAll()).thenReturn(Collections.emptyList());
+        allMeetings = meetingService.findAll();
+        assertIterableEquals(Collections.emptyList(), allMeetings, "No meetings");
     }
 
     @Test
-    void findById() {
-        int meetingId = 1;
-
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(meetingId);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-        meeting.setStrength(1);
-
+    void findByIdTest() {
+        int meetingId = 1, nonExistingMeetingId = 10;
         when(meetingRepository.findById(meetingId)).thenReturn(Optional.of(meeting));
-        Optional<Meeting> meetingById = meetingService.findById(meetingId);
-        assertEquals(Optional.of(meeting), meetingById, "Fetched meeting by id successfully");
+        MeetingResponseDTO meetingById = meetingService.findById(meetingId);
+        assertEquals(expectedMeetingResponseDTO, meetingById , "Fetched meeting by id successfully");
+
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.findById(nonExistingMeetingId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, exception.getMessage(), "Invalid meeting");
     }
 
     @Test
-    void save() {
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-        meeting.setStrength(1);
-
+    void saveTest() {
         when(meetingRepository.save(meeting)).thenReturn(meeting);
-        ResponseEntity response = meetingService.save(meeting);
-        assertEquals(meeting, response.getBody(), "Meeting saved successfully !");
+        ResponseEntity<MeetingResponseDTO> response = meetingService.save(meeting);
+        assertEquals(expectedMeetingResponseDTO, response.getBody(), "Meeting saved successfully !");
 
         meeting.setStartDatetime(LocalDateTime.parse("2023-12-12 10:00:00".replace(" ", "T")));
-        response = meetingService.save(meeting);
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode(), "Invalid meeting !");
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.save(meeting), "Expected exception thrown");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getHttpStatus(), "Invalid meeting");
     }
 
     @Test
-    void update() {
-        int meetingId = 1, nonExistingMeetingId = 2;
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(meetingId);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-        meeting.setStrength(1);
+    void updateTest() {
+        int meetingId = 1, nonExistingMeetingId = 10;
+        when(meetingRepository.findById(meetingId)).thenReturn(Optional.of(meeting));
 
         UpdateMeetingRequest updateMeetingRequest = new UpdateMeetingRequest();
         updateMeetingRequest.setName("Updated name");
         updateMeetingRequest.setDescription("Updated description");
         updateMeetingRequest.setEndDatetime(LocalDateTime.parse("2024-03-03 10:30:00".replace(" ", "T")));
 
-        Meeting updatedMeeting = new Meeting();
-        updatedMeeting.setMeetingId(meetingId);
+        Meeting updatedMeeting = meeting;
         updatedMeeting.setName("Updated name");
         updatedMeeting.setDescription("Updated description");
-        updatedMeeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
         updatedMeeting.setEndDatetime(LocalDateTime.parse("2024-03-03 10:30:00".replace(" ", "T")));
-        updatedMeeting.setActiveStatus(true);
-        updatedMeeting.setStrength(1);
-
-        when(meetingRepository.findById(meetingId)).thenReturn(Optional.of(meeting));
-        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
         when(meetingRepository.save(updatedMeeting)).thenReturn(updatedMeeting);
 
-        ResponseEntity response = meetingService.update(meetingId, updateMeetingRequest);
-        assertEquals(updatedMeeting, response.getBody(), "Meeting updated successfully !");
+        MeetingResponseDTO updatedMeetingResponseDTO = new MeetingResponseDTO(updatedMeeting.getMeetingId(), updatedMeeting.getName(), updatedMeeting.getDescription(), updatedMeeting.getStartDatetime(), updatedMeeting.getEndDatetime(), updatedMeeting.isActiveStatus(), updatedMeeting.getStrength(), updatedMeeting.getEmployee().getEmployeeId());
 
-        response = meetingService.update(nonExistingMeetingId, updateMeetingRequest);
-        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, response.getBody(), "Invalid - case 1");
+        ResponseEntity<MeetingResponseDTO> response = meetingService.update(meetingId, updateMeetingRequest);
+        assertEquals(updatedMeetingResponseDTO.getName(), response.getBody().getName(), "Meeting name updated successfully !");
+        assertEquals(updatedMeetingResponseDTO.getDescription(), response.getBody().getDescription(), "Meeting description updated successfully !");
+        assertEquals(updatedMeetingResponseDTO.getEndDatetime(), response.getBody().getEndDatetime(), "Meeting endDatetime successfully !");
+
+        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.update(nonExistingMeetingId, updateMeetingRequest), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, exception.getMessage(), "Invalid - case 1");
 
         updateMeetingRequest.setEndDatetime(LocalDateTime.parse("2023-12-12 10:30:00".replace(" ", "T")));
-        response = meetingService.update(meetingId, updateMeetingRequest);
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode(), "Invalid - case 2");
+        ValidationException validationException = assertThrows(ValidationException.class, () -> meetingService.update(meetingId, updateMeetingRequest), "Expected exception thrown");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, validationException.getHttpStatus(), "Invalid - case 2");
     }
 
     @Test
-    void deleteById() {
-        int meetingId = 1, nonExistingMeetingId = 2;
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-        meeting.setStrength(1);
+    void deleteByIdTest() {
+        int meetingId = 1, nonExistingMeetingId = 10;
 
         when(meetingRepository.findById(meetingId)).thenReturn(Optional.of(meeting));
-        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
-        doAnswer(invocation -> {
-            int id = invocation.getArgument(0); // Get first argument
-            if (id == 1) {
-                return ResponseEntity.status(HttpStatus.ACCEPTED).body(MeetingSchedulerConstants.MEETING_DELETED);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(MeetingSchedulerConstants.MEETING_NOT_FOUND);
-            }
-        }).when(meetingRepository).deleteById(anyInt()); // Custom behavior since return type is void
-
-        ResponseEntity response = meetingService.deleteById(meetingId);
+        ResponseEntity<String> response = meetingService.deleteById(meetingId);
         assertEquals(MeetingSchedulerConstants.MEETING_DELETED, response.getBody(), "Meeting deleted successfully");
 
-        response = meetingService.deleteById(nonExistingMeetingId);
-        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, response.getBody(), "Invalid - case 1");
+        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.deleteById(nonExistingMeetingId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, exception.getMessage(), "Invalid - case 1");
 
         meeting.setStartDatetime(LocalDateTime.parse("2024-01-04 10:00:00".replace(" ", "T")));
-        response = meetingService.deleteById(meetingId);
-        assertEquals(MeetingSchedulerConstants.CANCEL_NOTICE_TIME_SHORTER, response.getBody(), "Invalid - case 2");
+        when(meetingRepository.findById(meetingId)).thenReturn(Optional.of(meeting));
+        exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.deleteById(meetingId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.CANCEL_NOTICE_TIME_SHORTER, exception.getMessage(), "Invalid - case 2");
     }
 
     @Test
-    void createTeamMeeting() {
+    void addAnEmployeeToMeetingTest() {
+        int meeting1Id = 1, meeting2Id = 2, nonExistingMeetingId = 3;
+        int employee1Id = 1, employee2Id = 2, nonExistingEmployeeId = 3;
+
+        // For case - collaboration meeting
+        Team newCollabTeam = new Team();
+        newCollabTeam.setName("Team name " + MeetingSchedulerConstants.NAME_EXTENSION_COLLABORATION_TEAM);
+        newCollabTeam.setStrength(1);
+        newCollabTeam.setCollaborationTeam(true);
+        newCollabTeam.addEmployee(employee1);
+
+        Meeting meeting1 = meeting;
+        meeting2.setTeams(new ArrayList<>(Arrays.asList(newCollabTeam)));
+        when(meetingRepository.findById(meeting1Id)).thenReturn(Optional.of(meeting1));
+        when(meetingRepository.findById(meeting2Id)).thenReturn(Optional.of(meeting2));
+        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
+        when(employeeRepository.findById(employee1Id)).thenReturn(Optional.of(employee1));
+        when(employeeRepository.findById(employee2Id)).thenReturn(Optional.of(employee2));
+        when(employeeRepository.findById(nonExistingEmployeeId)).thenReturn(Optional.empty());
+
+        ResponseEntity<MeetingResponseDTO> employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting1Id, employee2Id);
+        assertEquals(meeting1.getStrength(), employeeAddedResponse.getBody().getStrength(), "Employee added to Team meeting successfully");
+
+        employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting2Id, employee2Id);
+        assertEquals(meeting2.getStrength(), employeeAddedResponse.getBody().getStrength(), "Employee added to Collaboration meeting successfully");
+
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.addAnEmployeeToMeeting(nonExistingMeetingId, employee2Id), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, exception.getMessage(), "Invalid - case 1");
+
+        exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.addAnEmployeeToMeeting(meeting1Id, nonExistingEmployeeId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.EMPLOYEE_NOT_FOUND, exception.getMessage(), "Invalid - case 2");
+
+        exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.addAnEmployeeToMeeting(meeting1Id, employee1Id), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.EMPLOYEE_ALREADY_IN_MEETING, exception.getMessage(), "Invalid - case 3");
+    }
+
+    @Test
+    void removeAnEmployeeFromMeetingTest() {
+        int meeting1Id = 1, meeting2Id = 2, nonExistingMeetingId = 3;
+        int employee1Id = 1, employee2Id = 2, nonExistingEmployeeId = 3;
+
+        // For case - collaboration meeting
+        Team newCollabTeam = new Team();
+        newCollabTeam.setName("Team name " + MeetingSchedulerConstants.NAME_EXTENSION_COLLABORATION_TEAM);
+        newCollabTeam.setStrength(1);
+        newCollabTeam.setCollaborationTeam(true);
+        newCollabTeam.addEmployee(employee1);
+
+        Meeting meeting1 = meeting;
+        meeting2.setTeams(new ArrayList<>(Arrays.asList(newCollabTeam)));
+
+        when(meetingRepository.findById(meeting1Id)).thenReturn(Optional.of(meeting1));
+        when(meetingRepository.findById(meeting2Id)).thenReturn(Optional.of(meeting2));
+        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
+        when(employeeRepository.findById(employee1Id)).thenReturn(Optional.of(employee1));
+        when(employeeRepository.findById(employee2Id)).thenReturn(Optional.of(employee2));
+        when(employeeRepository.findById(nonExistingEmployeeId)).thenReturn(Optional.empty());
+
+        ResponseEntity<MeetingResponseDTO> employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting1Id, employee1Id);
+        assertEquals(meeting1.getStrength(), employeeRemovedResponse.getBody().getStrength(), "Employee removed from Team meeting successfully");
+
+        employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting2Id, employee1Id);
+        assertEquals(meeting2.getStrength(), employeeRemovedResponse.getBody().getStrength(), "Employee removed from Collaboration meeting successfully");
+
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.removeAnEmployeeFromMeeting(nonExistingMeetingId, employee1Id), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, exception.getMessage(), "Invalid - case 1");
+
+        exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.removeAnEmployeeFromMeeting(meeting1Id, nonExistingEmployeeId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.EMPLOYEE_NOT_FOUND, exception.getMessage(), "Invalid - case 2");
+
+        exception = assertThrows(MeetingSchedulerException.class, () -> meetingService.removeAnEmployeeFromMeeting(meeting1Id, employee2Id), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.EMPLOYEE_ALREADY_NOT_IN_MEETING, exception.getMessage(), "Invalid - case 3");
+
+    }
+
+    @Test
+    void createTeamMeetingTest() {
         LocalDateTime startDatetime = LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T"));
         LocalDateTime endDatetime = LocalDateTime.parse("2024-03-03 11:00:00".replace(" ", "T"));
-        LocalDateTime pastStartDatetime = LocalDateTime.parse("2023-12-12 10:00:00".replace(" ", "T"));
-
-        int roomId = 1, nonExistingRoomId = 2;
+        int roomId = 1, nonExistingRoomId = 2, teamId = 1, collaborationTeamId = 2, nonExistingTeamId = 3;
         List<Integer> collaborators = new ArrayList<>(Arrays.asList(1,2));
-        CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
+        final CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
 
-        int teamId = 1, collaborationTeamId = 2, nonExistingTeamId = 3;
-        Team team = new Team();
-        team.setTeamId(teamId);
-        team.setName("Team name");
-        Team collaborationTeam = new Team();
-        collaborationTeam.setTeamId(collaborationTeamId);
-        collaborationTeam.setName("Team name - Collaboration team");
-        collaborationTeam.setCollaborationTeam(true);
-        collaborationTeam.setEmployees(new ArrayList<>());
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
-        when(teamRepository.findById(collaborationTeamId)).thenReturn(Optional.of(collaborationTeam));
-        when(teamRepository.findById(nonExistingTeamId)).thenReturn(Optional.empty());
-
-        Room room = new Room();
-        room.setRoomId(roomId);
-        room.setName("Room name");
-        room.setCapacity(5);
-        room.setMeetings(new ArrayList<>());
         when(roomRepository.findById(roomId)).thenReturn(Optional.of(room));
+        when(teamRepository.findById(nonExistingTeamId)).thenReturn(Optional.empty());
         when(roomRepository.findById(nonExistingRoomId)).thenReturn(Optional.empty());
-
-        Employee employee1 = new Employee();
-        employee1.setEmployeeId(1);
-        employee1.setName("Employee1 name");
-        employee1.setEmail("employee1@mail.com");
-        employee1.setTeams(new ArrayList<>());
-        Employee employee2 = new Employee();
-        employee2.setEmployeeId(2);
-        employee2.setName("Employee2 name");
-        employee2.setEmail("employee2@mail.com");
-        employee2.setTeams(new ArrayList<>());
-
-        employee1.addTeam(team);
-        employee2.addTeam(team);
-
         team.setStrength(createMeetingRequest.getCollaborators().size());
         team.setCollaborationTeam(false);
         team.addEmployee(employee1);
         team.addEmployee(employee2);
-
-        List<Employee> nonAvailableMembers = new ArrayList<>();
-        List<Employee> nonAvailableMembersResponse = meetingService.nonAvailableMembersInTeam(team, createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime());
-        assertEquals(nonAvailableMembers, nonAvailableMembersResponse, "Non available members detected successfully");
-
-        boolean roomAvailable = meetingService.isRoomAvailableForTheDuration(room, createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime());
-        assertTrue(roomAvailable, "Room availability check success");
-//        when(dateTimeUtils.isValidDateTime(createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime())).thenReturn(MeetingSchedulerConstants.TRUE);
         when(employeeRepository.findById(createMeetingRequest.getMeetingOrganiserId())).thenReturn(Optional.of(employee1));
 
         Meeting newMeeting = new Meeting();
@@ -243,61 +304,51 @@ public class MeetingServiceImplTest {
         newMeeting.addRoom(room);
         newMeeting.addTeam(team);
 
-        when(meetingRepository.save(newMeeting)).thenReturn(newMeeting);
-
-        List<Room> rooms = new ArrayList<>();
-        ResponseEntity availableRoomsBasedOnStrength = meetingService.findAvailableRoomsBasedOnStrength(200);
-        assertEquals(ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(MeetingSchedulerConstants.TEAM_STRENGTH_HIGHER_THAN_ANY_ROOM_CAPACITY), availableRoomsBasedOnStrength, "Available rooms detected successfully");
+        expectedMeetingResponseDTO = new MeetingResponseDTO(0, newMeeting.getName(), newMeeting.getDescription(), newMeeting.getStartDatetime(), newMeeting.getEndDatetime(), newMeeting.isActiveStatus(), newMeeting.getStrength(), newMeeting.getEmployee().getEmployeeId());
+        expectedMeetingResponseDTO.setRooms(newMeeting.getRooms().stream().map(Room::getRoomId).toList());
+        expectedMeetingResponseDTO.setTeams(newMeeting.getTeams().stream().map(Team::getTeamId).toList());
+        expectedMeetingResponseDTO.setDeclinedInvitees("[]");
 
         ResponseEntity teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, teamId);
-        assertEquals(newMeeting, teamMeeting.getBody(), "New team meeting creation success !");
+        assertEquals(expectedMeetingResponseDTO, teamMeeting.getBody(), "New team meeting creation success !");
 
-        teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, collaborationTeamId);
-        assertEquals(MeetingSchedulerConstants.COLLABORATION_TEAM_NOT_ALLOWED, teamMeeting.getBody(), "Invalid - case 1");
+        Team collaborationTeam = new Team();
+        collaborationTeam.setTeamId(collaborationTeamId);
+        collaborationTeam.setName("Team name - Collaboration team");
+        collaborationTeam.setCollaborationTeam(true);
+        collaborationTeam.setEmployees(new ArrayList<>());
+        when(teamRepository.findById(collaborationTeamId)).thenReturn(Optional.of(collaborationTeam));
+        LocalDateTime pastStartDatetime = LocalDateTime.parse("2023-12-12 10:00:00".replace(" ", "T"));
 
-        teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, nonExistingTeamId);
-        assertEquals(MeetingSchedulerConstants.TEAM_NOT_FOUND, teamMeeting.getBody(), "Invalid - case 2");
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createTeamMeeting(createMeetingRequest, collaborationTeamId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.COLLABORATION_TEAM_NOT_ALLOWED, exception.getMessage(), "Invalid - case 1");
 
-        createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, nonExistingRoomId, collaborators );
-        teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, teamId);
-        assertEquals(MeetingSchedulerConstants.ROOM_NOT_FOUND, teamMeeting.getBody(), "Invalid - case 3");
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createTeamMeeting(createMeetingRequest, nonExistingTeamId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.TEAM_NOT_FOUND, exception.getMessage(), "Invalid - case 2");
 
-        createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", pastStartDatetime, endDatetime, 1, roomId, collaborators );
-        teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, teamId);
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, teamMeeting.getStatusCode(), "Invalid - case 4");
+        CreateMeetingRequest createMeetingRequest1 = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, nonExistingRoomId, collaborators );
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createTeamMeeting(createMeetingRequest1, teamId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.ROOM_NOT_FOUND, exception.getMessage(), "Invalid - case 3");
+
+        CreateMeetingRequest createMeetingRequest2 = new CreateMeetingRequest("Meeting name", "Meeting description", pastStartDatetime, endDatetime, 1, roomId, collaborators );
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createTeamMeeting(createMeetingRequest2, teamId), "Expected exception thrown");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getHttpStatus(), "Invalid - case 4");
 
         room.setCapacity(0);
-        teamMeeting = meetingService.createTeamMeeting(createMeetingRequest, teamId);
-        assertEquals(MeetingSchedulerConstants.ROOM_CAPACITY_LESSER, teamMeeting.getBody(), "Invalid - case 5");
-
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createTeamMeeting(createMeetingRequest, teamId), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.ROOM_CAPACITY_LESSER, exception.getMessage(), "Invalid - case 5");
     }
 
     @Test
-    void createCollaborationMeeting() {
+    void createCollaborationMeetingTest() {
         LocalDateTime startDatetime = LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T"));
         LocalDateTime endDatetime = LocalDateTime.parse("2024-03-03 11:00:00".replace(" ", "T"));
-        LocalDateTime pastStartDatetime = LocalDateTime.parse("2023-12-12 10:00:00".replace(" ", "T"));
-
-        int roomId = 1, nonExistingRoomId = 2;
-        int nonExistingEmployeeId = 3;
+        int roomId = 1, nonExistingRoomId = 2, nonExistingEmployeeId = 3;;
         List<Integer> collaborators = new ArrayList<>(Arrays.asList(1,2));
-
-        CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
-
-        Employee employee1 = new Employee();
-        employee1.setEmployeeId(1);
-        employee1.setName("Employee1 name");
-        employee1.setEmail("employee1@mail.com");
-        employee1.setTeams(new ArrayList<>());
-        Employee employee2 = new Employee();
-        employee2.setEmployeeId(2);
-        employee2.setName("Employee2 name");
-        employee2.setEmail("employee2@mail.com");
-        employee2.setTeams(new ArrayList<>());
+        final CreateMeetingRequest createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
 
         when(employeeRepository.findById(1)).thenReturn(Optional.of(employee1));
         when(employeeRepository.findById(2)).thenReturn(Optional.of(employee2));
-
         Team newCollabTeam = new Team();
         newCollabTeam.setName(createMeetingRequest.getName() + MeetingSchedulerConstants.NAME_EXTENSION_COLLABORATION_TEAM);
         newCollabTeam.setStrength(createMeetingRequest.getCollaborators().size());
@@ -306,25 +357,8 @@ public class MeetingServiceImplTest {
         newCollabTeam.addEmployee(employee2);
         when(teamRepository.save(newCollabTeam)).thenReturn(newCollabTeam);
 
-        employee1.addTeam(newCollabTeam);
-        employee2.addTeam(newCollabTeam);
-
-        Room room = new Room();
-        room.setRoomId(roomId);
-        room.setName("Room name");
-        room.setCapacity(5);
-        room.setMeetings(new ArrayList<>());
-
-        List<Employee> nonAvailableMembers = new ArrayList<>();
-        List<Employee> nonAvailableMembersResponse = meetingService.nonAvailableMembersInTeam(newCollabTeam, createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime());
-        assertEquals(nonAvailableMembers, nonAvailableMembersResponse, "Non available members detected successfully");
-
         when(roomRepository.findById(roomId)).thenReturn(Optional.of(room));
         when(roomRepository.findById(nonExistingRoomId)).thenReturn(Optional.empty());
-//        doNothing().when(teamRepository).deleteById(1);
-        boolean roomAvailable = meetingService.isRoomAvailableForTheDuration(room, createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime());
-        assertTrue(roomAvailable, "Room availability check success");
-//        when(dateTimeUtils.isValidDateTime(createMeetingRequest.getStartDatetime(), createMeetingRequest.getEndDatetime())).thenReturn(MeetingSchedulerConstants.TRUE);
         when(employeeRepository.findById(createMeetingRequest.getMeetingOrganiserId())).thenReturn(Optional.of(employee1));
 
         Meeting newMeeting = new Meeting();
@@ -337,313 +371,52 @@ public class MeetingServiceImplTest {
         newMeeting.addRoom(room);
         newMeeting.addTeam(newCollabTeam);
 
-        when(meetingRepository.save(newMeeting)).thenReturn(newMeeting);
-
-        List<Room> rooms = new ArrayList<>();
-        ResponseEntity availableRoomsBasedOnStrength = meetingService.findAvailableRoomsBasedOnStrength(200);
-        assertEquals(MeetingSchedulerConstants.TEAM_STRENGTH_HIGHER_THAN_ANY_ROOM_CAPACITY, availableRoomsBasedOnStrength.getBody(), "Team strength higher !");
+        expectedMeetingResponseDTO = new MeetingResponseDTO(0, newMeeting.getName(), newMeeting.getDescription(), newMeeting.getStartDatetime(), newMeeting.getEndDatetime(), newMeeting.isActiveStatus(), newMeeting.getStrength(), newMeeting.getEmployee().getEmployeeId());
+        expectedMeetingResponseDTO.setRooms(newMeeting.getRooms().stream().map(Room::getRoomId).toList());
+        expectedMeetingResponseDTO.setTeams(newMeeting.getTeams().stream().map(Team::getTeamId).toList());
+        expectedMeetingResponseDTO.setDeclinedInvitees("[]");
 
         ResponseEntity collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(newMeeting, collaborationMeeting.getBody(), "New Collaboration meeting creation success !");
+        assertEquals(expectedMeetingResponseDTO, collaborationMeeting.getBody(), "New Collaboration meeting creation success !");
 
-        createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, nonExistingRoomId, collaborators );
-        collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(MeetingSchedulerConstants.ROOM_NOT_FOUND, collaborationMeeting.getBody(), "Invalid - case 1");
+        LocalDateTime pastStartDatetime = LocalDateTime.parse("2023-12-12 10:00:00".replace(" ", "T"));
+        CreateMeetingRequest createMeetingRequest1 = new CreateMeetingRequest("Meeting name", "Meeting description", startDatetime, endDatetime, 1, nonExistingRoomId, collaborators );
+        MeetingSchedulerException exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createCollaborationMeeting(createMeetingRequest1), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.ROOM_NOT_FOUND, exception.getMessage(), "Invalid - case 1");
 
-        createMeetingRequest = new CreateMeetingRequest("Meeting name", "Meeting description", pastStartDatetime, endDatetime, 1, roomId, collaborators );
-        collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, collaborationMeeting.getStatusCode(), "Invalid - case 2");
+        CreateMeetingRequest createMeetingRequest2 = new CreateMeetingRequest("Meeting name", "Meeting description", pastStartDatetime, endDatetime, 1, roomId, collaborators );
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createCollaborationMeeting(createMeetingRequest2), "Expected exception thrown");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getHttpStatus(), "Invalid - case 2");
 
         room.setCapacity(0);
-        collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(MeetingSchedulerConstants.ROOM_CAPACITY_LESSER, collaborationMeeting.getBody(), "Invalid - case 3");
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createCollaborationMeeting(createMeetingRequest), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.ROOM_CAPACITY_LESSER, exception.getMessage(), "Invalid - case 3");
 
         collaborators.add(nonExistingEmployeeId);
-        createMeetingRequest = new CreateMeetingRequest ("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
-        collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(MeetingSchedulerConstants.COLLABORATORS_NOT_FOUND, collaborationMeeting.getBody(), "Invalid - case 4");
+        CreateMeetingRequest createMeetingRequest3 = new CreateMeetingRequest ("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createCollaborationMeeting(createMeetingRequest3), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.COLLABORATORS_NOT_FOUND, exception.getMessage(), "Invalid - case 4");
 
         collaborators = new ArrayList<>();
-        createMeetingRequest = new CreateMeetingRequest ("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
-        collaborationMeeting = meetingService.createCollaborationMeeting(createMeetingRequest);
-        assertEquals(MeetingSchedulerConstants.ADD_COLLABORATORS, collaborationMeeting.getBody(), "Invalid - case 5");
-
-    }
-    @Test
-    void addAnEmployeeToMeeting() {
-        int meeting1Id = 1, meeting2Id = 2, nonExistingMeetingId = 3;
-        int employee1Id =1, employee2Id = 2, nonExistingEmployeeId = 3;
-
-        Employee employee1 = new Employee();
-        employee1.setEmployeeId(1);
-        employee1.setName("Employee1 name");
-        employee1.setEmail("employee1@mail.com");
-        employee1.setTeams(new ArrayList<>());
-        Employee employee2 = new Employee();
-        employee2.setEmployeeId(2);
-        employee2.setName("Employee2 name");
-        employee2.setEmail("employee2@mail.com");
-        employee2.setTeams(new ArrayList<>());
-
-        // For case - collaboration meeting
-        Team newCollabTeam = new Team();
-        newCollabTeam.setName("Team name " + MeetingSchedulerConstants.NAME_EXTENSION_COLLABORATION_TEAM);
-        newCollabTeam.setStrength(2);
-        newCollabTeam.setCollaborationTeam(true);
-        newCollabTeam.addEmployee(employee1);
-
-        Meeting meeting1 = new Meeting();
-        meeting1.setMeetingId(meeting1Id);
-        meeting1.setName("Meeting name");
-        meeting1.setDescription("Meeting Description");
-        meeting1.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting1.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting1.setActiveStatus(true);
-        meeting1.setStrength(2);
-        meeting1.addTeam(newCollabTeam);
-
-        // For case - team meeting
-        Team team = new Team();
-        team.setName("Team name");
-        team.setStrength(2);
-        team.setCollaborationTeam(false);
-        team.addEmployee(employee1);
-
-        Meeting meeting2 = new Meeting();
-        meeting2.setMeetingId(meeting2Id);
-        meeting2.setName("Meeting name");
-        meeting2.setDescription("Meeting Description");
-        meeting2.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting2.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting2.setActiveStatus(true);
-        meeting2.setStrength(2);
-        meeting2.addTeam(team);
-
-        when(meetingRepository.findById(meeting1Id)).thenReturn(Optional.of(meeting1));
-        when(meetingRepository.findById(meeting2Id)).thenReturn(Optional.of(meeting2));
-        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
-        when(employeeRepository.findById(employee1Id)).thenReturn(Optional.of(employee1));
-        when(employeeRepository.findById(employee2Id)).thenReturn(Optional.of(employee2));
-        when(employeeRepository.findById(nonExistingEmployeeId)).thenReturn(Optional.empty());
-
-        ResponseEntity employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting1Id, employee2Id);
-        assertEquals(meeting1, employeeAddedResponse.getBody(), "Employee added to Collaboration meeting successfully");
-
-        employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting2Id, employee2Id);
-        assertEquals(meeting2, employeeAddedResponse.getBody(), "Employee added to Team meeting successfully");
-
-
-        employeeAddedResponse = meetingService.addAnEmployeeToMeeting(nonExistingMeetingId, employee1Id);
-        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, employeeAddedResponse.getBody(), "Invalid - case 1");
-
-
-        employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting1Id, nonExistingEmployeeId);
-        assertEquals(MeetingSchedulerConstants.EMPLOYEE_NOT_FOUND, employeeAddedResponse.getBody(), "Invalid - case 2");
-
-        employeeAddedResponse = meetingService.addAnEmployeeToMeeting(meeting1Id, employee1Id);
-        assertEquals(MeetingSchedulerConstants.EMPLOYEE_ALREADY_IN_MEETING, employeeAddedResponse.getBody(), "Invalid - case 3");
+        CreateMeetingRequest createMeetingRequest4 = new CreateMeetingRequest ("Meeting name", "Meeting description", startDatetime, endDatetime, 1, roomId, collaborators );
+        exception = assertThrows(MeetingSchedulerException.class, () ->  meetingService.createCollaborationMeeting(createMeetingRequest4), "Expected exception thrown");
+        assertEquals(MeetingSchedulerConstants.ADD_COLLABORATORS, exception.getMessage(), "Invalid - case 5");
     }
 
     @Test
-    void removeAnEmployeeFromMeeting() {
-        int meeting1Id = 1, meeting2Id = 2, nonExistingMeetingId = 3;
-        int employee1Id = 1, employee2Id = 2, nonExistingEmployeeId = 3;
-
-        Employee employee1 = new Employee();
-        employee1.setEmployeeId(1);
-        employee1.setName("Employee1 name");
-        employee1.setEmail("employee1@mail.com");
-        employee1.setTeams(new ArrayList<>());
-        Employee employee2 = new Employee();
-        employee2.setEmployeeId(2);
-        employee2.setName("Employee2 name");
-        employee2.setEmail("employee2@mail.com");
-        employee2.setTeams(new ArrayList<>());
-
-        // For case - collaboration meeting
-        Team newCollabTeam = new Team();
-        newCollabTeam.setName("Team name " + MeetingSchedulerConstants.NAME_EXTENSION_COLLABORATION_TEAM);
-        newCollabTeam.setStrength(2);
-        newCollabTeam.setCollaborationTeam(true);
-        newCollabTeam.addEmployee(employee1);
-
-        Meeting meeting1 = new Meeting();
-        meeting1.setMeetingId(meeting1Id);
-        meeting1.setName("Meeting name");
-        meeting1.setDescription("Meeting Description");
-        meeting1.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting1.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting1.setActiveStatus(true);
-        meeting1.setStrength(2);
-        meeting1.addTeam(newCollabTeam);
-
-        // For case - team meeting
-        Team team = new Team();
-        team.setName("Team name");
-        team.setStrength(2);
-        team.setCollaborationTeam(false);
-        team.addEmployee(employee1);
-
-        Meeting meeting2 = new Meeting();
-        meeting2.setMeetingId(meeting2Id);
-        meeting2.setName("Meeting name");
-        meeting2.setDescription("Meeting Description");
-        meeting2.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting2.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting2.setActiveStatus(true);
-        meeting2.setStrength(2);
-        meeting2.addTeam(team);
-
-        when(meetingRepository.findById(meeting1Id)).thenReturn(Optional.of(meeting1));
-        when(meetingRepository.findById(meeting2Id)).thenReturn(Optional.of(meeting2));
-        when(meetingRepository.findById(nonExistingMeetingId)).thenReturn(Optional.empty());
-        when(employeeRepository.findById(employee1Id)).thenReturn(Optional.of(employee1));
-        when(employeeRepository.findById(employee2Id)).thenReturn(Optional.of(employee2));
-        when(employeeRepository.findById(nonExistingEmployeeId)).thenReturn(Optional.empty());
-
-        ResponseEntity employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting1Id, employee1Id);
-        assertEquals(meeting1, employeeRemovedResponse.getBody(), "Employee removed from Collaboration meeting successfully");
-
-        employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting2Id, employee1Id);
-        assertEquals(meeting2, employeeRemovedResponse.getBody(), "Employee removed from Team meeting successfully");
-
-        employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(nonExistingMeetingId, employee1Id);
-        assertEquals(MeetingSchedulerConstants.MEETING_NOT_FOUND, employeeRemovedResponse.getBody(), "Invalid - case 1");
-
-        employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting1Id, nonExistingEmployeeId);
-        assertEquals(MeetingSchedulerConstants.EMPLOYEE_NOT_FOUND, employeeRemovedResponse.getBody(), "Invalid - case 2");
-
-        employeeRemovedResponse = meetingService.removeAnEmployeeFromMeeting(meeting1Id, employee2Id);
-        assertEquals(MeetingSchedulerConstants.EMPLOYEE_ALREADY_NOT_IN_MEETING, employeeRemovedResponse.getBody(), "Invalid - case 3");
-
-    }
-
-    @Test
-    void nonAvailableMembersInTeam() {
-        LocalDateTime startDatetime = LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T"));
-        LocalDateTime endDatetime = LocalDateTime.parse("2024-03-03 11:00:00".replace(" ", "T"));
-
-        Employee employee1 = new Employee();
-        employee1.setEmployeeId(1);
-        employee1.setName("Employee1 name");
-        employee1.setEmail("employee1@mail.com");
-        Team team = new Team();
-        team.setTeamId(1);
-        team.setName("Team name - Collaboration Team");
-        team.setStrength(1);
-        team.setCollaborationTeam(true);
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-
-        employee1.addTeam(team);
-        team.addEmployee(employee1);
-        team.addMeeting(meeting);
-
-        List<Employee> members = new ArrayList<>();
-        members.add(employee1);
-
-        when(meetingRepository.existsByTeamsAndStartDatetimeLessThanAndEndDatetimeGreaterThan(team, endDatetime, startDatetime)).thenReturn(Boolean.TRUE);
-
-        List<Employee> nonAvailableMembers = meetingService.nonAvailableMembersInTeam(team, startDatetime, endDatetime);
-        assertEquals(members, nonAvailableMembers, "Non available members detected successfully");
-
-    }
-
-    @Test
-    void findAvailableRoomsBasedOnStrength() {
-        int strength = 10;
+    void findAvailableRoomsBasedOnStrengthTest() {
+        int strength1 = 10, strength2 = 100;
         List<Room> rooms = new ArrayList<>();
-        Room room = new Room();
-        room.setRoomId(1);
-        room.setName("Room name");
-        room.setCapacity(5);
         rooms.add(room);
+        String availableRoomsIds = rooms.stream().map(Room::getRoomId).map(String::valueOf).collect(Collectors.joining(", "));
+        when(roomRepository.findByCapacityGreaterThanEqual(strength1)).thenReturn(rooms);
+        when(roomRepository.findByCapacityGreaterThanEqual(strength2)).thenReturn(List.of());
 
-        String availableRoomsIds = rooms.stream()
-                .map(Room::getRoomId)
-                .map(String::valueOf)
-                .collect(Collectors.joining(", "));
-
-        when(roomRepository.findByCapacityGreaterThanEqual(10)).thenReturn(rooms);
-
-        ResponseEntity response = meetingService.findAvailableRoomsBasedOnStrength(10);
+        ResponseEntity<String> response = meetingService.findAvailableRoomsBasedOnStrength(strength1);
         assertEquals(MeetingSchedulerConstants.CHOOSE_ROOM + availableRoomsIds, response.getBody(), "Available rooms detected successfully");
+
+        response = meetingService.findAvailableRoomsBasedOnStrength(strength2);
+        assertEquals(MeetingSchedulerConstants.TEAM_STRENGTH_HIGHER_THAN_ANY_ROOM_CAPACITY, response.getBody(), "No rooms available for the strength");
     }
-
-    @Test
-    void isRoomAvailableForTheDuration() {
-        LocalDateTime startDatetime = LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T"));
-        LocalDateTime endDatetime = LocalDateTime.parse("2024-03-03 11:00:00".replace(" ", "T"));
-
-        Room room = new Room();
-        room.setRoomId(1);
-        room.setName("Room name");
-        room.setCapacity(5);
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-        meeting.addRoom(room);
-
-        when(meetingRepository.existsByRoomsAndStartDatetimeLessThanAndEndDatetimeGreaterThan(room, endDatetime, startDatetime)).thenReturn(Boolean.TRUE);
-        boolean isAvailable = meetingService.isRoomAvailableForTheDuration(room, startDatetime, endDatetime);
-        assertFalse(isAvailable, "Room status detected successfully");
-    }
-
-    @Test
-    void isMemberAvailableForTheDuration() {
-        LocalDateTime startDatetime = LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T"));
-        LocalDateTime endDatetime = LocalDateTime.parse("2024-03-03 11:00:00".replace(" ", "T"));
-        Employee employee = new Employee();
-        employee.setEmployeeId(1);
-        employee.setName("Employee name");
-        employee.setEmail("employee@mail.com");
-        Team team = new Team();
-        team.setTeamId(1);
-        team.setName("Team name - Collaboration Team");
-        team.setStrength(1);
-        team.setCollaborationTeam(true);
-        Meeting meeting = new Meeting();
-        meeting.setMeetingId(1);
-        meeting.setName("Meeting name");
-        meeting.setDescription("Meeting Description");
-        meeting.setStartDatetime(LocalDateTime.parse("2024-03-03 10:00:00".replace(" ", "T")));
-        meeting.setEndDatetime(LocalDateTime.parse("2024-03-03 12:00:00".replace(" ", "T")));
-        meeting.setActiveStatus(true);
-
-        employee.addTeam(team);
-        team.addMeeting(meeting);
-
-        when(meetingRepository.existsByTeamsAndStartDatetimeLessThanAndEndDatetimeGreaterThan(team, endDatetime, startDatetime)).thenReturn(Boolean.TRUE);
-
-        boolean isAvailable = meetingService.isMemberAvailableForTheDuration(employee, startDatetime, endDatetime);
-        assertFalse(isAvailable, "Member status detected successfully");
-    }
-
-    @Test
-    void filterValidEmployees() {
-        List<Employee> employees = new ArrayList<>();
-        Employee employee = new Employee();
-        employee.setEmployeeId(1);
-        employee.setName("Employee name");
-        employee.setEmail("employee@mail.com");
-        employees.add(employee);
-
-        when(employeeRepository.findById(1)).thenReturn(Optional.of(employee));
-        when(employeeRepository.findById(2)).thenReturn(Optional.empty());
-        when(employeeRepository.findById(3)).thenReturn(Optional.empty());
-
-        List<Employee> validEmployees = meetingService.filterValidEmployees(new ArrayList<>(Arrays.asList(1, 2, 3)));
-        assertEquals(employees, validEmployees, "Filtered valid employees successfully");
-    }
-
 
 }

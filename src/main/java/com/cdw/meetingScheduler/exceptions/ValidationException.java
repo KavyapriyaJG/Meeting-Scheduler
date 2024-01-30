@@ -2,11 +2,11 @@ package com.cdw.meetingScheduler.exceptions;
 
 import org.springframework.http.HttpStatus;
 
-public class MeetingSchedulerException extends RuntimeException {
 
-    private HttpStatus httpStatus;
+public class ValidationException  extends RuntimeException {
+    private final HttpStatus httpStatus;
 
-    public MeetingSchedulerException(HttpStatus httpStatus, String message) {
+    public ValidationException(HttpStatus httpStatus, String message) {
         super(message);
         this.httpStatus = httpStatus;
     }

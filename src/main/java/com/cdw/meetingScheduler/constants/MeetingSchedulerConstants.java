@@ -9,6 +9,7 @@ public final class MeetingSchedulerConstants {
     public static final String TEAM_NOT_FOUND = "Team not found !";
     public static final String MEETING_NOT_FOUND = "Meeting not found !";
     public static final String ROOM_NOT_FOUND = "Room not found !";
+    public static final String ORGANISER_NOT_FOUND = "Meeting organiser not found !";
 
     // Entity Deleted
     public static final String EMPLOYEE_DELETED = "Employee deleted !";
